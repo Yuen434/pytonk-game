@@ -8,14 +8,13 @@ on:
 jobs:
   build:
     runs-on: ubuntu-latest
-    timeout-minutes: 45  # 增加超时时间以防构建过程较长
+    timeout-minutes: 60  # 增加超时时间
     
     steps:
-    - name: Checkout code
-      uses: actions/checkout@v3
-      
+    - uses: actions/checkout@v4  # 更新到最新版本
+        
     - name: Set up Python
-      uses: actions/setup-python@v4
+      uses: actions/setup-python@v5
       with:
         python-version: '3.10'
         
@@ -23,15 +22,15 @@ jobs:
       run: |
         sudo apt-get update
         sudo apt-get install -y \
-          git zip unzip openjdk-17-jdk python3-pip autoconf \
-          libtool pkg-config zlib1g-dev libncurses5-dev \
-          libncursesw5-dev libtinfo5 cmake libssl-dev \
-          libsdl2-dev libsdl2-image-dev libsdl2-mixer-dev libsdl2-ttf-dev \
-          libffi-dev libxml2-dev libxslt-dev
-        python -m pip install --upgrade pip setuptools wheel
+          git zip unzip openjdk-17-jdk \
+          autoconf libtool pkg-config zlib1g-dev \
+          libncurses5-dev libncursesw5-dev libtinfo5 cmake \
+          libssl-dev libffi-dev libxml2-dev libxslt-dev \
+          libsdl2-dev libsdl2-image-dev libsdl2-mixer-dev libsdl2-ttf-dev
         
     - name: Install Python dependencies
       run: |
+        python -m pip install --upgrade pip
         pip install buildozer cython virtualenv kivy
         
     - name: Create buildozer.spec
@@ -40,52 +39,38 @@ jobs:
         [app]
         title = PyTonk Game
         package.name = pytonkgame
-        package.domain = com.pytonk
+        package.domain = org.pytonk
         source.dir = .
-        source.include_exts = py,png,jpg,kv,atlas
-        source.main = main.py  # 确保指定入口文件
-        version = 1.0.0
-        requirements = python3, pygame==2.1.3, sdl2_ttf, kivy, android
+        source.include_exts = py,png,jpg,ttf,otf
+        source.main = main.py
+        version = 0.1
+        requirements = python3,pygame==2.1.3,kivy
         orientation = landscape
         fullscreen = 1
-        android.permissions = VIBRATE, INTERNET
-        android.arch = armeabi-v7a
-        android.ndk = 23b  # 明确指定NDK版本
-        p4a.branch = master
+        android.permissions = VIBRATE
         android.api = 33
         android.minapi = 24
-        android.sdk = 33  # 修正SDK版本
-        android.accept_sdk_license = True  # 自动接受许可
-        android.debug = True
-        log_level = 2  # 详细日志
-        
-        [buildozer]
-        log_level = 2
-        warn_on_root = 1
+        android.sdk = 33
+        android.ndk = 25b
+        android.accept_sdk_license = True
+        p4a.branch = master
         EOF
-        
-    - name: Verify file structure
-      run: |
-        echo "当前目录结构:"
-        ls -la
-        echo "主文件是否存在:"
-        ls main.py || echo "警告：未找到main.py！"
         
     - name: Build APK
       run: |
-        # 设置构建环境变量
-        export PATH=$PATH:~/.local/bin
-        export ANDROIDSDK="/home/runner/.buildozer/android/platform/android-sdk"
-        export ANDROIDNDK="/home/runner/.buildozer/android/ndk/23b"
+        # 设置环境变量
+        export BUILD_PATH=$(pwd)
+        export PATH="${PATH}:${HOME}/.local/bin"
+        
+        # 初始化Buildozer
+        buildozer init -f
         
         # 执行构建
-        buildozer android clean
         buildozer -v android debug
         
-    - name: Upload APK artifact
+    - name: Upload APK
+      if: success()
       uses: actions/upload-artifact@v3
       with:
-        name: PyTonk-Game-APK
-        path: |
-          bin/*.apk
-        retention-days: 1
+        name: PyTonk-APK
+        path: bin/*.apk
