@@ -8,7 +8,7 @@ on:
 jobs:
   build:
     runs-on: ubuntu-latest
-    timeout-minutes: 30
+    timeout-minutes: 45  # 增加超时时间以防构建过程较长
     
     steps:
     - name: Checkout code
@@ -19,41 +19,73 @@ jobs:
       with:
         python-version: '3.10'
         
-    - name: Install dependencies
+    - name: Install system dependencies
       run: |
         sudo apt-get update
-        sudo apt-get install -y git zip unzip openjdk-17-jdk python3-pip autoconf libtool pkg-config zlib1g-dev libncurses5-dev libncursesw5-dev libtinfo5 cmake libssl-dev
-        sudo apt-get install -y libsdl2-dev libsdl2-image-dev libsdl2-mixer-dev libsdl2-ttf-dev
-        python -m pip install --upgrade pip
-        pip install buildozer cython virtualenv
+        sudo apt-get install -y \
+          git zip unzip openjdk-17-jdk python3-pip autoconf \
+          libtool pkg-config zlib1g-dev libncurses5-dev \
+          libncursesw5-dev libtinfo5 cmake libssl-dev \
+          libsdl2-dev libsdl2-image-dev libsdl2-mixer-dev libsdl2-ttf-dev \
+          libffi-dev libxml2-dev libxslt-dev
+        python -m pip install --upgrade pip setuptools wheel
+        
+    - name: Install Python dependencies
+      run: |
+        pip install buildozer cython virtualenv kivy
         
     - name: Create buildozer.spec
       run: |
-        echo "[app]" > buildozer.spec
-        echo "title = PyTonk Game" >> buildozer.spec
-        echo "package.name = pytonkgame" >> buildozer.spec
-        echo "package.domain = com.pytonk.game" >> buildozer.spec
-        echo "source.dir = ." >> buildozer.spec
-        echo "version = 1.0.0" >> buildozer.spec
-        echo "requirements = python3, pygame==2.1.3, sdl2_ttf" >> buildozer.spec
-        echo "orientation = landscape" >> buildozer.spec
-        echo "fullscreen = 1" >> buildozer.spec
-        echo "android.permissions = VIBRATE" >> buildozer.spec
-        echo "android.arch = armeabi-v7a" >> buildozer.spec
-        echo "p4a.branch = master" >> buildozer.spec
-        echo "android.api = 33" >> buildozer.spec
-        echo "android.minapi = 21" >> buildozer.spec
-        echo "android.sdk = 24" >> buildozer.spec
+        cat > buildozer.spec <<EOF
+        [app]
+        title = PyTonk Game
+        package.name = pytonkgame
+        package.domain = com.pytonk
+        source.dir = .
+        source.include_exts = py,png,jpg,kv,atlas
+        source.main = main.py  # 确保指定入口文件
+        version = 1.0.0
+        requirements = python3, pygame==2.1.3, sdl2_ttf, kivy, android
+        orientation = landscape
+        fullscreen = 1
+        android.permissions = VIBRATE, INTERNET
+        android.arch = armeabi-v7a
+        android.ndk = 23b  # 明确指定NDK版本
+        p4a.branch = master
+        android.api = 33
+        android.minapi = 24
+        android.sdk = 33  # 修正SDK版本
+        android.accept_sdk_license = True  # 自动接受许可
+        android.debug = True
+        log_level = 2  # 详细日志
+        
+        [buildozer]
+        log_level = 2
+        warn_on_root = 1
+        EOF
+        
+    - name: Verify file structure
+      run: |
+        echo "当前目录结构:"
+        ls -la
+        echo "主文件是否存在:"
+        ls main.py || echo "警告：未找到main.py！"
         
     - name: Build APK
       run: |
-        buildozer -v android clean
-        buildozer -v android debug
-        cp bin/*.apk .
+        # 设置构建环境变量
+        export PATH=$PATH:~/.local/bin
+        export ANDROIDSDK="/home/runner/.buildozer/android/platform/android-sdk"
+        export ANDROIDNDK="/home/runner/.buildozer/android/ndk/23b"
         
-    - name: Upload APK
+        # 执行构建
+        buildozer android clean
+        buildozer -v android debug
+        
+    - name: Upload APK artifact
       uses: actions/upload-artifact@v3
       with:
         name: PyTonk-Game-APK
         path: |
-          *.apk
+          bin/*.apk
+        retention-days: 1
