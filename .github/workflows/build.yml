@@ -1,0 +1,53 @@
+姓名: 构建PyTonk安装包
+
+在……之上: 
+推:
+分支机构: [主要的]
+workflow_dispatch:
+
+工作:
+建立:
+连续的: Ubuntu-最新
+步骤:
+    - 姓名: 签出代码
+uses: 操作/签出@v3
+      
+    - 姓名: 设置python
+uses: actions/setup-python@v4
+和……一起:
+python版: '3.10'
+        
+    - 姓名: 安装相依性
+跑: |
+sudo apt-get更新
+sudo apt-get安装-y git zip解压openjdk-17-jdk python3-pip autoconf libtool pkg-config zlib1g-dev libncurs es5-dev libncursesw5-dev libtinfo5cmake libssl-dev
+Python-m pip安装--升级pip
+PIP安装buildozer cython virtualenv
+        
+    - 姓名: 创建buildozer.spec
+跑: |
+回声"[app]">buildozer.spec
+回声"title=Python游戏">>buildozer.spec
+回声"package.name=pythonkgame">>buildozer.spec
+回声"package.domain=com.pythonk.game">>buildozer.spec
+回声"source.dir=。">>buildozer.spec
+回声"版本=1.0.0">>buildozer.spec
+回声"requirements=python3，pygame==2.1.3，sdl2_ttf">>buildozer.spec
+回声"方向=横向">>buildozer.spec
+回声"全屏=1">>buildozer.spec
+回声"android.permissions=振动">>buildozer.spec
+回声"android.arch=armeabi-v7a">>buildozer.spec
+回声"p4a.branch=master">>buildozer.spec
+回声"android.api=33">>buildozer.spec
+        
+    - 姓名: 构建安装包
+跑: |
+Buildozer-v android调试
+CP bin/*.apk.
+        
+    - 姓名: 上传安装包
+uses: 操作/上载工件@v3
+和……一起:
+姓名: PyTonk-Game-APK
+路径: |
+*.apk
